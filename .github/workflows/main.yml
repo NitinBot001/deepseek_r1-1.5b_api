@@ -25,32 +25,21 @@ jobs:
           sleep 5  # सर्वर स्टार्ट होने का इंतजार करें
           echo "OLLAMA Server started!"
 
-      - name: Install Pinggy (Updated)
-        run: |
-          curl -o pinggy "https://s3.ap-south-1.amazonaws.com/public.pinggy.binaries/cli/v0.1.6/linux/amd64/pinggy"
-          chmod +x pinggy
-          echo "Pinggy installed successfully!"
-
       - name: Start Tunnel and Restart Every 55 Minutes
         run: |
           while true; do
-            echo "Starting new Pinggy tunnel..."
-            ./pinggy http 127.0.0.1:11434 --region us > pinggy.log 2>&1 &  # Pinggy बैकग्राउंड में रन करें
+            echo "Starting new Pinggy tunnel using SSH..."
+            nohup ssh -p 443 -L4300:localhost:4300 -o StrictHostKeyChecking=no \
+                -o ServerAliveInterval=30 -t -R0:localhost:5000 ap.a.pinggy.io x:https > pinggy_output.txt 2>&1 &
             
-            # Pinggy का आउटपुट लाइव मॉनिटर करें
-            TIMEOUT=30  # 30 सेकंड तक टनल URL का इंतजार करें
-            ELAPSED=0
-            TUNNEL_URL=""
-
-            while [[ -z "$TUNNEL_URL" && $ELAPSED -lt $TIMEOUT ]]; do
-              sleep 2
-              ELAPSED=$((ELAPSED + 2))
-              TUNNEL_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+' pinggy.log | head -1)
-            done
+            sleep 15  # टनल स्टार्ट होने का इंतजार करें
+            
+            # Extract tunnel URL, ignoring "dashboard.pinggy.io"
+            TUNNEL_URL=$(grep -o 'https://[^ ]*' pinggy_output.txt | grep -v 'dashboard.pinggy.io' | head -n 1)
 
             if [[ -z "$TUNNEL_URL" ]]; then
               echo "Error: Tunnel URL not found!"
-              cat pinggy.log  # Debugging के लिए पूरा लॉग दिखाएं
+              cat pinggy_output.txt  # Debugging के लिए पूरा लॉग दिखाएं
               exit 1
             fi
 
@@ -61,5 +50,5 @@ jobs:
             sleep 3300  # 55 मिनट (55 * 60)
             
             echo "Restarting tunnel..."
-            pkill -f pinggy  # पुराने टनल को बंद करें
+            pkill -f "ssh -p 443"  # पुराने टनल को बंद करें
           done
