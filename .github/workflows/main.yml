@@ -35,7 +35,7 @@ jobs:
         run: |
           while true; do
             echo "Starting new Pinggy tunnel..."
-            nohup ./pinggy -p 443 -L4300:localhost:4300 -R0:localhost:14344 a.pinggy.io > pinggy.log 2>&1 &
+            nohup ./pinggy http 127.0.0.1:11434 --region us > pinggy.log 2>&1 &
             sleep 5  # टनल स्टार्ट होने का इंतजार करें
 
             # Pinggy लॉग से टनल URL निकालें
