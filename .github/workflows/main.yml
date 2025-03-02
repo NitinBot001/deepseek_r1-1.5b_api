@@ -27,7 +27,7 @@ jobs:
 
       - name: Install Pinggy
         run: |
-          curl -fsSL https://github.com/pinggy-io/pinggy/releases/latest/download/pinggy-linux-amd64 -o pinggy
+          curl -o pinggy "https://s3.ap-south-1.amazonaws.com/public.pinggy.binaries/cli/v0.1.6/linux/amd64/pinggy"
           chmod +x pinggy
           echo "Pinggy installed successfully!"
 
