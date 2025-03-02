@@ -27,7 +27,7 @@ jobs:
 
       - name: Start OLLAMA Server
         run: |
-          nohup ollama serve > ollama.log 2>&1 &  # Add --host 0.0.0.0
+          ollama serve
           sleep 5
           echo "OLLAMA Server started!"
 
