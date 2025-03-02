@@ -22,12 +22,12 @@ jobs:
       - name: Stop Existing OLLAMA Servers
         run: |
           # Kill all running OLLAMA processes
-          pkill -f "ollama serve" || true  # Ignore errors if no process exists
+          sudo pkill -f "ollama serve" || true  # Ignore errors if no process exists
           sleep 2  # Allow time for termination
 
       - name: Start OLLAMA Server
         run: |
-          nohup ollama serve --host 127.0.0.1 > ollama.log 2>&1 &  # Add --host 0.0.0.0
+          nohup ollama serve > ollama.log 2>&1 &  # Add --host 0.0.0.0
           sleep 5
           echo "OLLAMA Server started!"
 
@@ -36,7 +36,7 @@ jobs:
           while true; do
             echo "Starting new Pinggy tunnel..."
             sudo apt install nodejs 
-            sudo npx nport -s ollamazjdh -p 11434 
+            sudo npx nport -s ollamazjdgfh -p 11434 
             echo "Waiting 55 minutes before restarting..."
             sleep 21300
             
