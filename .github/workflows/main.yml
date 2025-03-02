@@ -1,15 +1,15 @@
 name: Run OLLAMA Server with Auto Restart
 
 on:
-  workflow_dispatch:  # मैन्युअल स्टार्ट के लिए
+  workflow_dispatch:
   schedule:
-    - cron: "*/350 * * * *"  # हर 350 मिनट बाद ऑटोमैटिक स्टार्ट
+    - cron: "0 */6 * * *"  # Fixed cron: Every 6 hours
 
 jobs:
   run-ollama-server:
     runs-on: ubuntu-latest
-    timeout-minutes: 350  # GitHub का मैक्सिमम टाइमआउट
-    
+    timeout-minutes: 350
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -19,16 +19,34 @@ jobs:
           curl -fsSL https://ollama.com/install.sh | sh
           echo "OLLAMA installed successfully!"
 
+      - name: Stop Existing OLLAMA Servers
+        run: |
+          # Kill all running OLLAMA processes
+          pkill -f "ollama serve" || true  # Ignore errors if no process exists
+          sleep 2  # Allow time for termination
+
       - name: Start OLLAMA Server
         run: |
           nohup ollama serve > ollama.log 2>&1 &
-          sleep 5  # सर्वर स्टार्ट होने का इंतजार करें
+          sleep 5  # Wait for server to start
           echo "OLLAMA Server started!"
 
       - name: Start Tunnel and Restart Every 55 Minutes
         run: |
           while true; do
-            echo "Starting new Pinggy tunnel using SSH..."
-            sudo apt install nodejs
-            sudo npx nport -s ollamazxt -p 11434 # पुराने टनल को बंद करें
+            echo "Starting new Pinggy tunnel..."
+            nohup ssh -p 443 -R0:0.0.0.0:11434 a.pinggy.io x:https > pinggy_output.txt 2>&1 &
+            sleep 15
+
+            TUNNEL_URL=$(grep -o 'https://[^ ]*' pinggy_output.txt | grep -v 'dashboard.pinggy.io' | head -n 1)
+            if [[ -z "$TUNNEL_URL" ]]; then
+              echo "Error: Tunnel URL not found!"
+              cat pinggy_output.txt
+              exit 1
+            fi
+
+            echo "Tunnel URL: $TUNNEL_URL" >> $GITHUB_ENV
+            echo "Waiting 55 minutes before restarting..."
+            sleep 3300
+            pkill -f "ssh -p 443"
           done
