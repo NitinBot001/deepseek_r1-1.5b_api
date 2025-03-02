@@ -35,15 +35,22 @@ jobs:
         run: |
           while true; do
             echo "Starting new Pinggy tunnel..."
-            nohup ./pinggy http 127.0.0.1:11434 --region us > pinggy.log 2>&1 &
-            sleep 5  # टनल स्टार्ट होने का इंतजार करें
-
-            # Pinggy लॉग से टनल URL निकालें
-            TUNNEL_URL=$(tail -f pinggy.log | grep -oE 'https://[a-zA-Z0-9.-]+' | head -1)
+            ./pinggy http 127.0.0.1:11434 --region us > pinggy.log 2>&1 &  # Pinggy बैकग्राउंड में रन करें
             
+            # Pinggy का आउटपुट लाइव मॉनिटर करें
+            TIMEOUT=30  # 30 सेकंड तक टनल URL का इंतजार करें
+            ELAPSED=0
+            TUNNEL_URL=""
+
+            while [[ -z "$TUNNEL_URL" && $ELAPSED -lt $TIMEOUT ]]; do
+              sleep 2
+              ELAPSED=$((ELAPSED + 2))
+              TUNNEL_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+' pinggy.log | head -1)
+            done
+
             if [[ -z "$TUNNEL_URL" ]]; then
               echo "Error: Tunnel URL not found!"
-              cat pinggy.log  # Debugging के लिए लॉग दिखाएं
+              cat pinggy.log  # Debugging के लिए पूरा लॉग दिखाएं
               exit 1
             fi
 
