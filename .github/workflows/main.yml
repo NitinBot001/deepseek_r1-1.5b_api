@@ -1,81 +1,49 @@
-name: Run Ollama with Loophole
+name: Run OLLAMA Server with Auto Restart
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:  # मैन्युअल स्टार्ट के लिए
   schedule:
-    - cron: '0 */6 * * *'  # Run every 6 hours
+    - cron: "*/350 * * * *"  # हर 350 मिनट बाद ऑटोमैटिक स्टार्ट
 
 jobs:
-  run-ollama:
+  run-ollama-server:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 350  # GitHub का मैक्सिमम टाइमआउट
+    
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: sudo apt update && sudo apt install -y wget curl
-
-      - name: Install Ollama
+      - name: Install OLLAMA
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
-          echo "Ollama installed successfully!"
+          echo "OLLAMA installed successfully!"
 
-      - name: Kill Any Existing Ollama Process
+      - name: Start OLLAMA Server
         run: |
-          if pgrep -x "ollama" > /dev/null; then
-            echo "Ollama is already running. Stopping it..."
-            sudo pkill -9 ollama || true  # Force kill if needed, ignore errors
-            sleep 5
-          fi
+          nohup ollama serve > ollama.log 2>&1 &
+          sleep 5  # सर्वर स्टार्ट होने का इंतजार करें
+          echo "OLLAMA Server started!"
 
-      - name: Start Ollama
+      - name: Install Pinggy
         run: |
-          echo "Starting Ollama..."
-          nohup ollama serve > ollama.log 2>&1 &  # Run Ollama in the background
-          sleep 10
+          curl -fsSL https://github.com/pinggy-io/pinggy/releases/latest/download/pinggy-linux-amd64 -o pinggy
+          chmod +x pinggy
+          echo "Pinggy installed successfully!"
 
-      - name: Pull DeepSeek Model
+      - name: Start Tunnel and Restart Every 55 Minutes
         run: |
-          echo "Downloading deepseek-r1:1.5b model..."
-          ollama run deepseek-r1:1.5b &
-          sleep 10
-
-      - name: Start Loophole
-        run: |
-          echo "Downloading Loophole..."
-          curl -L --output loophole https://raw.githubusercontent.com/NitinBot001/deepseek_r1-1.5b_api/main/loophole
-          
-          echo "Checking file details..."
-          ls -lah loophole  # Ensure file exists
-          file loophole  # Verify file type
-          cat loophole | head -n 10  # Inspect contents
-
-          echo "Setting permissions..."
-          chmod +x loophole || { echo "Failed to set permissions"; exit 1; }
-          
-          echo "Moving loophole to /usr/local/bin..."
-          sudo mv loophole /usr/local/bin/ || { echo "Failed to move loophole to /usr/local/bin"; exit 1; }
-          
-          echo "Verifying loophole is in PATH..."
-          which loophole || { echo "Loophole not found in PATH"; exit 1; }
-
-          echo "Running Loophole..."
-          sudo /usr/local/bin/loophole account login &
-          sudo /usr/local/bin/loophole http 11434 &
-
-          echo "Waiting for tunnel URL..."
-          sleep 30  # Ensure loophole has time to start
-
-          ps aux | grep loophole  # Debugging: Check if loophole is running
-
-      - name: Keep Alive
-        run: |
-          sudo /usr/local/bin/loophole http 11434 &
-          echo "Keeping workflow alive for 5 hours 45 minutes..."
-          sleep 20700
+          while true; do
+            echo "Starting new Pinggy tunnel..."
+            ./pinggy http 127.0.0.1:11434 --region us > tunnel.log 2>&1 &
+            sleep 10  # टनल शुरू होने का इंतजार करें
+            TUNNEL_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+' tunnel.log | head -1)
+            echo "Tunnel is live at: $TUNNEL_URL"
+            echo "Tunnel URL: $TUNNEL_URL" >> $GITHUB_ENV  # URL को स्टोर करें
+            
+            echo "Waiting for 55 minutes before restarting tunnel..."
+            sleep 3300  # 55 मिनट (55 * 60)
+            
+            echo "Restarting tunnel..."
+            pkill -f pinggy  # पुराने टनल को बंद करें
+          done
