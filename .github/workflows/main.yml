@@ -25,7 +25,8 @@ jobs:
       - name: Stop Existing OLLAMA Servers
         run: |
           # Kill all running OLLAMA processes
-          sudo pkill -f "ollama serve"  # Ignore errors if no process exists
+          sudo killall -9 ollama
+          # sudo pkill -f "ollama serve"   Ignore errors if no process exists
           sleep 2  # Allow time for termination
 
       - name: Start OLLAMA Server
