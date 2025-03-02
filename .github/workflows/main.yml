@@ -29,25 +29,6 @@ jobs:
         run: |
           while true; do
             echo "Starting new Pinggy tunnel using SSH..."
-            nohup ssh -p 443 -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R0:localhost:11434 a.pinggy.io x:https > pinggy_output.txt 2>&1 &
-            
-            sleep 15  # टनल स्टार्ट होने का इंतजार करें
-            
-            # Extract tunnel URL, ignoring "dashboard.pinggy.io"
-            TUNNEL_URL=$(grep -o 'https://[^ ]*' pinggy_output.txt | grep -v 'dashboard.pinggy.io' | head -n 1)
-
-            if [[ -z "$TUNNEL_URL" ]]; then
-              echo "Error: Tunnel URL not found!"
-              cat pinggy_output.txt  # Debugging के लिए पूरा लॉग दिखाएं
-              exit 1
-            fi
-
-            echo "Tunnel is live at: $TUNNEL_URL"
-            echo "Tunnel URL: $TUNNEL_URL" >> $GITHUB_ENV  # URL को स्टोर करें
-            
-            echo "Waiting for 55 minutes before restarting tunnel..."
-            sleep 3300  # 55 मिनट (55 * 60)
-            
-            echo "Restarting tunnel..."
-            pkill -f "ssh -p 443"  # पुराने टनल को बंद करें
+            sudo apt install nodejs
+            sudo npx nport -s ollamazxt -p 11434 # पुराने टनल को बंद करें
           done
