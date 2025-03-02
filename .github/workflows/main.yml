@@ -35,18 +35,9 @@ jobs:
         run: |
           while true; do
             echo "Starting new Pinggy tunnel..."
-            nohup ssh -p 443 -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R0:localhost:11434 a.pinggy.io x:https > pinggy_output.txt 2>&1 &
-            sleep 15
-
-            TUNNEL_URL=$(grep -o 'https://[^ ]*' pinggy_output.txt | grep -v 'dashboard.pinggy.io' | head -n 1)
-            if [[ -z "$TUNNEL_URL" ]]; then
-              echo "Error: Tunnel URL not found!"
-              cat pinggy_output.txt
-              exit 1
-            fi
-
-            echo "Tunnel URL: $TUNNEL_URL" >> $GITHUB_ENV
+            sudo apt install nodejs 
+            sudo npx nport -s ollamazjdh -p 11434 
             echo "Waiting 55 minutes before restarting..."
-            sleep 3300
-            pkill -f "ssh -p 443"
+            sleep 21300
+            
           done
