@@ -35,7 +35,7 @@ jobs:
         run: |
           while true; do
             echo "Starting new Pinggy tunnel..."
-            nohup ssh -p 443 -R0:0.0.0.0:11434 a.pinggy.io x:https > pinggy_output.txt 2>&1 &
+            nohup ssh -p 443 -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R0:localhost:11434 a.pinggy.io x:https > pinggy_output.txt 2>&1 &
             sleep 15
 
             TUNNEL_URL=$(grep -o 'https://[^ ]*' pinggy_output.txt | grep -v 'dashboard.pinggy.io' | head -n 1)
