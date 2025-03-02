@@ -27,8 +27,8 @@ jobs:
 
       - name: Start OLLAMA Server
         run: |
-          nohup ollama serve > ollama.log 2>&1 &
-          sleep 5  # Wait for server to start
+          nohup ollama serve --host 0.0.0.0 > ollama.log 2>&1 &  # Add --host 0.0.0.0
+          sleep 5
           echo "OLLAMA Server started!"
 
       - name: Start Tunnel and Restart Every 55 Minutes
