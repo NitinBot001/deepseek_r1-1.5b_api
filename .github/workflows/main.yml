@@ -35,9 +35,18 @@ jobs:
         run: |
           while true; do
             echo "Starting new Pinggy tunnel..."
-            ./pinggy -p 443 -L4300:localhost:4300 -R0:localhost:8000 a.pinggy.io > tunnel.log 2>&1 &
-            sleep 10  # टनल शुरू होने का इंतजार करें
-            TUNNEL_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+' tunnel.log | head -1)
+            nohup ./pinggy -p 443 -L4300:localhost:4300 -R0:localhost:14344 a.pinggy.io > pinggy.log 2>&1 &
+            sleep 5  # टनल स्टार्ट होने का इंतजार करें
+
+            # Pinggy लॉग से टनल URL निकालें
+            TUNNEL_URL=$(tail -f pinggy.log | grep -oE 'https://[a-zA-Z0-9.-]+' | head -1)
+            
+            if [[ -z "$TUNNEL_URL" ]]; then
+              echo "Error: Tunnel URL not found!"
+              cat pinggy.log  # Debugging के लिए लॉग दिखाएं
+              exit 1
+            fi
+
             echo "Tunnel is live at: $TUNNEL_URL"
             echo "Tunnel URL: $TUNNEL_URL" >> $GITHUB_ENV  # URL को स्टोर करें
             
