@@ -30,7 +30,7 @@ jobs:
           while true; do
             echo "Starting new Pinggy tunnel using SSH..."
             nohup ssh -p 443 -L4300:localhost:4300 -o StrictHostKeyChecking=no \
-                -o ServerAliveInterval=30 -t -R0:localhost:5000 ap.a.pinggy.io x:https > pinggy_output.txt 2>&1 &
+                -o ServerAliveInterval=30 -t -R0:localhost:11434 ap.a.pinggy.io x:https > pinggy_output.txt 2>&1 &
             
             sleep 15  # टनल स्टार्ट होने का इंतजार करें
             
