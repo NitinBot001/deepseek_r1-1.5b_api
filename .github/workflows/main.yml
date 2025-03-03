@@ -1,113 +1,47 @@
-name: Run OLLAMA Server with Proxy (Windows)
+name: Ollama Infinite Tunnel with NPort
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # मैन्युअल ट्रिगर
   schedule:
-    - cron: "0 */6 * * *"  # Runs every 6 hours
+    - cron: '0 */6 * * *'  # हर 6 घंटे में स्वतः पुनःचालू
 
 jobs:
-  run-ollama-with-proxy:
-    runs-on: windows-latest
-    timeout-minutes: 350  # Prevent auto-timeout
+  ollama-tunnel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # GitHub का अधिकतम समय (6 घंटे)
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Ollama स्थापित करें
+      run: |
+        sudo curl -fsSL https://ollama.com/install.sh | sh
+        sudo ollama serve >/dev/null 2>&1 &
+        sleep 15
 
-      - name: Install Winget (if not available)
-        run: |
-          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-            echo "Winget not found. Downloading & Installing..."
-            Invoke-WebRequest -Uri "https://github.com/microsoft/winget-cli/releases/download/v1.10.320/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -OutFile "winget.msixbundle"
-            Add-AppxPackage -Path "winget.msixbundle"
-          } else {
-            echo "Winget is already installed."
-          }
+    - name: नेटवर्क सुरक्षा अक्षम करें
+      run: |
+        sudo ufw disable
+        sudo iptables -F
+        sudo sysctl -w net.ipv4.ip_forward=1
 
-      - name: Install OLLAMA using Winget
-        run: |
-          winget install --id=Ollama.Ollama -e --accept-source-agreements --accept-package-agreements
-          echo "Ollama installation completed!"
+    - name: NPort टनल सेटअप
+      run: |
+        sudo npm install -g nport
+        nohup npx nport -s mainsjsj -p 11434 > nport.log 2>&1 &
+        sleep 20
+        echo "PUBLIC_URL=$(grep 'Public URL' nport.log | awk '{print $NF}')" >> $GITHUB_ENV
 
-      - name: Kill Any Existing Ollama Process
-        run: |
-          Get-Process -Name "ollama" -ErrorAction SilentlyContinue | Stop-Process -Force
+    - name: सतत चलने वाला लूप
+      run: |
+        while true; do
+          echo "🔄 सर्वर सक्रिय | $(date)"
+          echo "🌐 सार्वजनिक पहुँच URL: ${{ env.PUBLIC_URL }}"
+          echo "🔓 सभी पोर्ट्स खुले हैं (11434/80)"
+          curl -s localhost:11434 || echo "❌ Ollama सर्वर त्रुटि"
+          sleep 300
+        done
 
-      - name: Start Ollama Server
-        run: |
-          Start-Process -NoNewWindow -FilePath "ollama" -ArgumentList "serve"
-
-      - name: Pull DeepSeek Model
-        run: |
-          Start-Process -NoNewWindow -FilePath "ollama" -ArgumentList "pull llama3.2"
-
-      - name: Install Python and Flask
-        run: |
-          choco install python --yes
-          pip install flask requests
-
-      - name: Start Proxy Server
-        run: |
-          echo @"
-          from flask import Flask, request, jsonify
-          import requests
-
-          app = Flask(__name__)
-          OLLAMA_BASE_URL = "http://localhost:11434"
-
-          @app.route('/<path:endpoint>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-          def proxy_ollama(endpoint):
-              url = f"{OLLAMA_BASE_URL}/{endpoint}"
-              try:
-                  if request.method == 'GET':
-                      response = requests.get(url, params=request.args)
-                  elif request.method == 'POST':
-                      response = requests.post(url, json=request.json)
-                  elif request.method == 'PUT':
-                      response = requests.put(url, json=request.json)
-                  elif request.method == 'DELETE':
-                      response = requests.delete(url)
-
-                  return jsonify(response.json()), response.status_code
-              except requests.exceptions.RequestException as e:
-                  return jsonify({"error": "Ollama server unreachable", "details": str(e)}), 500
-
-          if __name__ == '__main__':
-              app.run(host='0.0.0.0', port=1002, debug=True)
-          "@ > proxy.py
-
-          Start-Process -NoNewWindow -FilePath "python" -ArgumentList "proxy.py"
-
-      - name: Generate Random Subdomain Name
-        run: |
-          $randomString = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 8 | ForEach-Object { [char]$_ })
-          echo "SUBDOMAIN=$randomString" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: Start Tunnel for Proxy and Save URL
-        run: |
-          choco install nodejs --yes
-          Start-Process -NoNewWindow -FilePath "npx" -ArgumentList "nport -s $env:SUBDOMAIN -p 1002"
-          Start-Sleep -Seconds 5
-
-          # Construct tunnel URL
-          $TUNNEL_URL = "https://$env:SUBDOMAIN.nport.dev"
-
-          # Save URL to instance.json
-          echo "{ `"tunnel_url`": `"$TUNNEL_URL`" }" | Out-File -Encoding utf8 -FilePath "instance.json"
-          Get-Content "instance.json"
-
-      - name: Commit and Push instance.json
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-
-          git add instance.json
-          git commit -m "Update instance.json with new tunnel URL"
-          git push https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Keep Job Alive
-        run: |
-          echo "Keeping workflow alive..."
-          while ($true) { Start-Sleep -Seconds 60 }
+    - name: टनल जानकारी प्रदर्शित करें
+      run: |
+        echo "✅ सफलता: Ollama सर्वर सक्रिय!"
+        echo "🔗 NPort टनल URL: ${{ env.PUBLIC_URL }}"
+        echo "⚠️ चेतावनी: सभी सुरक्षा नियम निष्क्रिय कर दिए गए हैं"
