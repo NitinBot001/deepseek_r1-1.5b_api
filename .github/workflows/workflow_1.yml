@@ -22,12 +22,9 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install flask llama-cpp-python nport-cli jq
+          pip install flask llama-cpp-python jq
 
-      - name: Set Model Path from Secrets
-        run: |
-          echo "MODEL_PATH=${{ secrets.MODEL_PATH }}" >> $GITHUB_ENV
-
+    
       - name: Generate Random Subdomain
         run: |
           SUBDOMAIN=$(openssl rand -hex 6)
