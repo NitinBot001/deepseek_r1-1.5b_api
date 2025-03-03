@@ -2,9 +2,6 @@ name: Deploy Model (Session 1)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   run-model:
