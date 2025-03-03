@@ -1,12 +1,12 @@
-name: Run OLLAMA Server with Auto Restart
+name: Run OLLAMA Server with Proxy
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *"  # Fixed cron: Every 6 hours
+    - cron: "0 */6 * * *"  # Runs every 6 hours
 
 jobs:
-  run-ollama-server:
+  run-ollama-with-proxy:
     runs-on: ubuntu-latest
     timeout-minutes: 350
 
@@ -18,35 +18,77 @@ jobs:
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           echo "OLLAMA installed successfully!"
-          sudo ufw disable
 
       - name: Kill Any Existing Ollama Process 
         run: | 
           if pgrep -x "ollama" > /dev/null; then 
             echo "Ollama is already running. Stopping it..." 
-            sudo pkill -9 ollama || true  # Force kill if needed, ignore errors 
+            sudo pkill -9 ollama || true  
             sleep 5 
           fi 
- 
+
       - name: Start Ollama 
         run: | 
           echo "Starting Ollama..." 
-          nohup ollama serve > ollama.log 2>&1 &  # Run Ollama in the background 
+          nohup ollama serve > ollama.log 2>&1 &  
           sleep 10 
- 
+
       - name: Pull DeepSeek Model 
         run: | 
           echo "Downloading deepseek-r1:1.5b model..." 
           ollama pull llama3.2 & 
           sleep 10 
-          
-      - name: Start Tunnel and Restart Every 55 Minutes
+
+      - name: Install Python and Flask
+        run: |
+          sudo apt update
+          sudo apt install -y python3 python3-pip
+          pip install flask requests
+
+      - name: Start Proxy Server
+        run: |
+          cat <<EOF > proxy.py
+          from flask import Flask, request, jsonify
+          import requests
+
+          app = Flask(__name__)
+          OLLAMA_BASE_URL = "http://localhost:11434"
+
+          @app.route('/<path:endpoint>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+          def proxy_ollama(endpoint):
+              url = f"{OLLAMA_BASE_URL}/{endpoint}"
+              try:
+                  if request.method == 'GET':
+                      response = requests.get(url, params=request.args)
+                  elif request.method == 'POST':
+                      response = requests.post(url, json=request.json)
+                  elif request.method == 'PUT':
+                      response = requests.put(url, json=request.json)
+                  elif request.method == 'DELETE':
+                      response = requests.delete(url)
+
+                  return jsonify(response.json()), response.status_code
+              except requests.exceptions.RequestException as e:
+                  return jsonify({"error": "Ollama server unreachable", "details": str(e)}), 500
+
+          if __name__ == '__main__':
+              app.run(host='0.0.0.0', port=1002, debug=True)
+          EOF
+
+          nohup python3 proxy.py > proxy.log 2>&1 &
+
+      - name: Generate Random Subdomain Name
+        run: |
+          RANDOM_SUBDOMAIN=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)
+          echo "Generated Subdomain: $RANDOM_SUBDOMAIN"
+          echo "SUBDOMAIN=$RANDOM_SUBDOMAIN" >> $GITHUB_ENV
+
+      - name: Start Tunnel for Proxy
         run: |
           while true; do
-            echo "Starting new Pinggy tunnel..."
-            sudo apt install nodejs 
-            sudo npx nport -s ollamazjhfh -p 11434 
+            echo "Starting nport tunnel..."
+            sudo apt install -y nodejs
+            sudo npx nport -s $SUBDOMAIN -p 1002 
             echo "Waiting 55 minutes before restarting..."
             sleep 21300
-            
           done
