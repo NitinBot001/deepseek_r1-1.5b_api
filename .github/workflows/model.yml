@@ -1,9 +1,6 @@
 name: Download and Store AI Model with Git LFS
 
 on: 
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
