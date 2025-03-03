@@ -1,0 +1,28 @@
+name: Download AI Model
+
+on: 
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  download-model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create model directory
+        run: mkdir -p model
+
+      - name: Download AI Model
+        run: wget -O model/calme-3.3-llamaloi-3b.Q4_K_S.gguf "https://huggingface.co/MaziyarPanahi/calme-3.3-llamaloi-3b-GGUF/resolve/main/calme-3.3-llamaloi-3b.Q4_K_S.gguf"
+
+      - name: Commit and Push Model File
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add model/calme-3.3-llamaloi-3b.Q4_K_S.gguf
+          git commit -m "Added AI model to model directory"
+          git push
