@@ -22,25 +22,32 @@ jobs:
           sudo ufw allow 80
           sudo ufw allow 443
 
-      - name: Stop Existing OLLAMA Servers
-        run: |
-          # Kill all running OLLAMA processes
-          sudo killall -9 ollama
-          # sudo pkill -f "ollama serve"   Ignore errors if no process exists
-          sleep 2  # Allow time for termination
-
-      - name: Start OLLAMA Server
-        run: |
-          ollama serve &
-          sleep 5
-          echo "OLLAMA Server started!"
-
+      - name: Kill Any Existing Ollama Process 
+        run: | 
+          if pgrep -x "ollama" > /dev/null; then 
+            echo "Ollama is already running. Stopping it..." 
+            sudo pkill -9 ollama || true  # Force kill if needed, ignore errors 
+            sleep 5 
+          fi 
+ 
+      - name: Start Ollama 
+        run: | 
+          echo "Starting Ollama..." 
+          nohup ollama serve > ollama.log 2>&1 &  # Run Ollama in the background 
+          sleep 10 
+ 
+      - name: Pull DeepSeek Model 
+        run: | 
+          echo "Downloading deepseek-r1:1.5b model..." 
+          ollama pull llama3.2 & 
+          sleep 10 
+          
       - name: Start Tunnel and Restart Every 55 Minutes
         run: |
           while true; do
             echo "Starting new Pinggy tunnel..."
             sudo apt install nodejs 
-            sudo npx nport -s ollamazjdgfh -p 11434 
+            sudo npx nport -s ollamazjhfh -p 11434 
             echo "Waiting 55 minutes before restarting..."
             sleep 21300
             
