@@ -1,4 +1,4 @@
-name: Run OLLAMA Server with Proxy (Persistent)
+name: Run OLLAMA Server with Proxy (Windows)
 
 on:
   workflow_dispatch:
@@ -7,47 +7,39 @@ on:
 
 jobs:
   run-ollama-with-proxy:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     timeout-minutes: 350  # Prevent auto-timeout
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install OLLAMA
+      - name: Download and Install OLLAMA
         run: |
-          curl -fsSL https://ollama.com/install.sh | sh
+          Invoke-WebRequest -Uri "https://ollama.com/download/OllamaSetup.exe" -OutFile "OllamaSetup.exe"
+          Start-Process -FilePath ".\OllamaSetup.exe" -ArgumentList "/silent" -Wait
           echo "OLLAMA installed successfully!"
 
-      - name: Kill Any Existing Ollama Process 
-        run: | 
-          if pgrep -x "ollama" > /dev/null; then 
-            echo "Ollama is already running. Stopping it..." 
-            sudo pkill -9 ollama || true  
-            sleep 5 
-          fi 
+      - name: Kill Any Existing Ollama Process
+        run: |
+          Get-Process -Name "ollama" -ErrorAction SilentlyContinue | Stop-Process -Force
 
-      - name: Start Ollama 
-        run: | 
-          echo "Starting Ollama..." 
-          nohup ollama serve > ollama.log 2>&1 &  
-          sleep 10 
+      - name: Start Ollama Server
+        run: |
+          Start-Process -NoNewWindow -FilePath "ollama.exe" -ArgumentList "serve"
 
-      - name: Pull DeepSeek Model 
-        run: | 
-          echo "Downloading deepseek-r1:1.5b model..." 
-          ollama pull llama3.2 & 
-          sleep 10 
+      - name: Pull DeepSeek Model
+        run: |
+          Start-Process -NoNewWindow -FilePath "ollama.exe" -ArgumentList "pull llama3.2"
 
       - name: Install Python and Flask
         run: |
-          sudo apt update
-          sudo apt install -y python3 python3-pip
+          choco install python --yes
           pip install flask requests
 
       - name: Start Proxy Server
         run: |
-          cat <<EOF > proxy.py
+          echo @"
           from flask import Flask, request, jsonify
           import requests
 
@@ -73,34 +65,33 @@ jobs:
 
           if __name__ == '__main__':
               app.run(host='0.0.0.0', port=1002, debug=True)
-          EOF
+          "@ > proxy.py
 
-          nohup python3 proxy.py > proxy.log 2>&1 &
+          Start-Process -NoNewWindow -FilePath "python" -ArgumentList "proxy.py"
 
       - name: Generate Random Subdomain Name
         run: |
-          RANDOM_SUBDOMAIN=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)
-          echo "Generated Subdomain: $RANDOM_SUBDOMAIN"
-          echo "SUBDOMAIN=$RANDOM_SUBDOMAIN" >> $GITHUB_ENV
+          $randomString = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 8 | ForEach-Object { [char]$_ })
+          echo "SUBDOMAIN=$randomString" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Start Tunnel for Proxy and Save URL
         run: |
-          sudo apt install -y nodejs
-          nohup npx nport -s $SUBDOMAIN -p 1002 > tunnel.log 2>&1 &
-          sleep 5
+          choco install nodejs --yes
+          Start-Process -NoNewWindow -FilePath "npx" -ArgumentList "nport -s $env:SUBDOMAIN -p 1002"
+          Start-Sleep -Seconds 5
 
-          # Extract the tunnel URL (assuming nport prints it)
-          TUNNEL_URL="https://$SUBDOMAIN.nport.dev"
+          # Construct tunnel URL
+          $TUNNEL_URL = "https://$env:SUBDOMAIN.nport.dev"
 
           # Save URL to instance.json
-          echo "{ \"tunnel_url\": \"$TUNNEL_URL\" }" > instance.json
-          cat instance.json
+          echo "{ `"tunnel_url`": `"$TUNNEL_URL`" }" | Out-File -Encoding utf8 -FilePath "instance.json"
+          Get-Content "instance.json"
 
       - name: Commit and Push instance.json
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          
+
           git add instance.json
           git commit -m "Update instance.json with new tunnel URL"
           git push https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git
@@ -110,6 +101,4 @@ jobs:
       - name: Keep Job Alive
         run: |
           echo "Keeping workflow alive..."
-          while true; do
-            sleep 60  # Keeps the workflow running indefinitely
-          done
+          while ($true) { Start-Sleep -Seconds 60 }
