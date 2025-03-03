@@ -83,12 +83,26 @@ jobs:
           echo "Generated Subdomain: $RANDOM_SUBDOMAIN"
           echo "SUBDOMAIN=$RANDOM_SUBDOMAIN" >> $GITHUB_ENV
 
-      - name: Start Tunnel for Proxy
+      - name: Start Tunnel for Proxy and Save URL
         run: |
-          while true; do
-            echo "Starting nport tunnel..."
-            sudo apt install -y nodejs
-            sudo npx nport -s $SUBDOMAIN -p 1002 
-            echo "Waiting 55 minutes before restarting..."
-            sleep 21300
-          done
+          sudo apt install -y nodejs
+          nohup npx nport -s $SUBDOMAIN -p 1002 > tunnel.log 2>&1 &
+          sleep 5
+
+          # Extract the tunnel URL (assuming nport prints it)
+          TUNNEL_URL="https://$SUBDOMAIN.nport.dev"
+
+          # Save URL to instance.json
+          echo "{ \"tunnel_url\": \"$TUNNEL_URL\" }" > instance.json
+          cat instance.json
+
+      - name: Commit and Push instance.json
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          git add instance.json
+          git commit -m "Update instance.json with new tunnel URL"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
