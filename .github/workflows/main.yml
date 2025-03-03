@@ -1,4 +1,4 @@
-name: Run OLLAMA Server with Proxy (Windows + Docker)
+name: Run OLLAMA Server with Proxy (Windows + WSL2 Docker)
 
 on:
   workflow_dispatch:
@@ -14,16 +14,25 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Docker
+      - name: Install WSL 2 and Ubuntu
+        run: |
+          wsl --install -d Ubuntu
+          echo "WSL 2 installed successfully!"
+
+      - name: Install Docker with WSL 2 Backend
         run: |
           choco install docker-desktop --yes
           Start-Service docker
           echo "Docker installed successfully!"
+          
+          # Ensure Docker uses WSL2
+          wsl --set-version Ubuntu 2
+          wsl -d Ubuntu -- bash -c "echo 'Docker is using WSL2'"
 
-      - name: Run Ollama in Docker
+      - name: Run Ollama in WSL 2 Docker
         run: |
-          docker pull ollama/ollama
-          docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+          wsl -d Ubuntu -- bash -c "docker pull ollama/ollama"
+          wsl -d Ubuntu -- bash -c "docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama"
           echo "Ollama is running in Docker!"
 
       - name: Install Python and Flask
