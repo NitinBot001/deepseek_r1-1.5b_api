@@ -19,7 +19,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install flask llama-cpp-python jq
+          pip install flask requests llama-cpp-python jq
 
     
       - name: Generate Random Subdomain
@@ -30,6 +30,7 @@ jobs:
 
       - name: Start Flask Server
         run: |
+          sudo apt install nodejs
           python app.py &
           sleep 10
 
