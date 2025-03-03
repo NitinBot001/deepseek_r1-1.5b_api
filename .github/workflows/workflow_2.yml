@@ -1,0 +1,58 @@
+name: Deploy Model (Session 2)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          pip install flask llama-cpp-python nport-cli jq
+
+      - name: Set Model Path from Secrets
+        run: |
+          echo "MODEL_PATH=${{ secrets.MODEL_PATH }}" >> $GITHUB_ENV
+
+      - name: Generate Random Subdomain
+        run: |
+          SUBDOMAIN=$(openssl rand -hex 6)
+          echo "SUBDOMAIN=$SUBDOMAIN" >> $GITHUB_ENV
+          echo "Generated Subdomain: $SUBDOMAIN"
+
+      - name: Start Flask Server
+        run: |
+          python app.py &
+          sleep 10
+
+      - name: Create NPort Tunnel & Save URL
+        run: |
+          TUNNEL_URL=$(npx nport -s $SUBDOMAIN -p 5000 | grep -o 'https://'"$SUBDOMAIN"'[^ ]*')
+          echo "Tunnel URL: $TUNNEL_URL"
+          echo "{\"url\": \"$TUNNEL_URL\"}" > instance.json
+
+      - name: Trigger Workflow 1 After 5 Hours 40 Minutes
+        run: |
+          echo "Waiting for 5 hours 40 minutes before triggering workflow_1..."
+          sleep 20400  
+          
+          echo "Triggering workflow_1 now..."
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{"ref": "main"}' \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/workflow_1.yml/dispatches"
+
+      - name: Keep Workflow Running
+        run: sleep 21600
