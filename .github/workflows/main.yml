@@ -14,11 +14,26 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Download and Install OLLAMA
+      - name: Download OLLAMA Installer
         run: |
           Invoke-WebRequest -Uri "https://ollama.com/download/OllamaSetup.exe" -OutFile "OllamaSetup.exe"
-          Start-Process -FilePath ".\OllamaSetup.exe" -ArgumentList "/silent" -Wait
-          echo "OLLAMA installed successfully!"
+          echo "Downloaded OllamaSetup.exe"
+
+      - name: Install OLLAMA
+        run: |
+          Start-Process -FilePath ".\OllamaSetup.exe" -ArgumentList "/VERYSILENT /NORESTART" -NoNewWindow -Wait
+          echo "Ollama installation started..."
+
+          # Wait a few seconds for installation
+          Start-Sleep -Seconds 20
+
+          # Verify if Ollama is installed
+          if (Test-Path "C:\Program Files\Ollama\ollama.exe") {
+            echo "Ollama installed successfully!"
+          } else {
+            echo "Ollama installation failed!" 
+            exit 1
+          }
 
       - name: Kill Any Existing Ollama Process
         run: |
@@ -26,11 +41,11 @@ jobs:
 
       - name: Start Ollama Server
         run: |
-          Start-Process -NoNewWindow -FilePath "ollama.exe" -ArgumentList "serve"
+          Start-Process -NoNewWindow -FilePath "C:\Program Files\Ollama\ollama.exe" -ArgumentList "serve"
 
       - name: Pull DeepSeek Model
         run: |
-          Start-Process -NoNewWindow -FilePath "ollama.exe" -ArgumentList "pull llama3.2"
+          Start-Process -NoNewWindow -FilePath "C:\Program Files\Ollama\ollama.exe" -ArgumentList "pull llama3.2"
 
       - name: Install Python and Flask
         run: |
