@@ -18,9 +18,7 @@ jobs:
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           echo "OLLAMA installed successfully!"
-          sudo ufw allow 11434/tcp
-          sudo ufw allow 80
-          sudo ufw allow 443
+          sudo ufw disable
 
       - name: Kill Any Existing Ollama Process 
         run: | 
