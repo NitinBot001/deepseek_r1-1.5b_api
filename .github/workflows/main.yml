@@ -26,6 +26,7 @@ jobs:
     - name: NPort टनल सेटअप
       run: |
         sudo apt install nodejs
+        npx localtunnel --port 8000 --local_host 127.0.0.1
         npx nport -s mainsjsj -p 11434 > nport.log 2>&1 &
         sleep 20
         echo "PUBLIC_URL=$(grep 'Public URL' nport.log | awk '{print $NF}')" >> $GITHUB_ENV
