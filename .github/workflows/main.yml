@@ -14,6 +14,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Install Winget (if not available)
+        run: |
+          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            echo "Winget not found. Downloading & Installing..."
+            Invoke-WebRequest -Uri "https://github.com/microsoft/winget-cli/releases/download/v1.10.320/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -OutFile "winget.msixbundle"
+            Add-AppxPackage -Path "winget.msixbundle"
+          } else {
+            echo "Winget is already installed."
+          }
+
       - name: Install OLLAMA using Winget
         run: |
           winget install --id=Ollama.Ollama -e --accept-source-agreements --accept-package-agreements
