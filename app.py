@@ -8,7 +8,7 @@ import requests
 app = Flask(__name__)
 
 # 🔹 Model Path (GitHub Secrets से लिया गया)
-MODEL_PATH = os.getenv("MODEL_PATH", "model/calme-3.3-llamaloi-3b.Q4_K_S.gguf)
+MODEL_PATH = os.getenv("MODEL_PATH", "model/calme-3.3-llamaloi-3b.Q4_K_S.gguf")
 
 # 🔹 Context File URL
 CONTEXT_URL = "https://raw.githubusercontent.com/NitinBot001/Unlimitedrdp/refs/heads/main/context.txt"
