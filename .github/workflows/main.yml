@@ -34,13 +34,13 @@ jobs:
         import sys
 
         app = Flask(__name__)
-        MODEL_PATH = "model/Llama-3.2-1B-Instruct-Q5_K_M.gguf"
+        MODEL_PATH = "model/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
 
         def download_model():
             os.makedirs("model", exist_ok=True)
             if not os.path.exists(MODEL_PATH):
                 print("Downloading model...")
-                r = requests.get("https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q5_K_M.gguf", stream=True)
+                r = requests.get("https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf", stream=True)
                 with open(MODEL_PATH, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
