@@ -20,17 +20,17 @@ jobs:
         run: mkdir -p model
 
       - name: Download AI Model
-        run: wget -O model/calme-3.3-llamaloi-3b.Q4_K_S.gguf "https://huggingface.co/MaziyarPanahi/calme-3.3-llamaloi-3b-GGUF/resolve/main/calme-3.3-llamaloi-3b.Q4_K_S.gguf"
+        run: wget -O model/Llama-3.2-3B-Instruct-Q4_K_M.gguf "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
 
       - name: Track model file using Git LFS
         run: |
-          git lfs track "model/calme-3.3-llamaloi-3b.Q4_K_S.gguf"
+          git lfs track "model/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
           git add .gitattributes
 
       - name: Commit and Push Model File
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add model/calme-3.3-llamaloi-3b.Q4_K_S.gguf
+          git add model/Llama-3.2-3B-Instruct-Q4_K_M.gguf
           git commit -m "Added AI model using Git LFS"
           git push origin main
