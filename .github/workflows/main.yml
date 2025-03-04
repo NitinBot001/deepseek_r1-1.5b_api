@@ -82,21 +82,37 @@ jobs:
       run: |
         # Start Flask service
         python app.py > app.log 2>&1 &
-        
+
         # Start tunnel
-        npx nport -s ${{ steps.uid.outputs.instance_id }} -p 5000 &
+        npx nport -s ${{ steps.uid.outputs.instance_id }} -p 5000 > tunnel.log 2>&1 &
+
+        # Wait for tunnel to establish and extract URL
+        sleep 10
+        TUNNEL_URL=$(grep -oP 'your domain is: \Khttps://\S+' tunnel.log)
         
+        echo "Extracted Tunnel URL: $TUNNEL_URL"
+
+        # Create instance.json file
+        echo "{ \"tunnel_url\": \"$TUNNEL_URL\" }" > instance.json
+
+        # Commit and push to the repository
+        git config --global user.email "github-actions@github.com"
+        git config --global user.name "github-actions"
+
+        git clone https://x-access-token:$GH_PAT@github.com/NitinBot001/Audio-url-new-js.git repo
+        cd repo
+
+        mv ../instance.json instance.json
+        git add instance.json
+        git commit -m "Update tunnel URL to $TUNNEL_URL"
+        git push origin main
+
         # Trigger next instance at 5.5 hours
         (sleep 19800 && 
         curl -X POST "https://api.github.com/repos/${{ github.repository }}/dispatches" \
           -H "Authorization: Bearer $GH_PAT" \
           -H "Accept: application/vnd.github.everest-preview+json" \
           -d '{"event_type": "trigger-service"}') &
-        
+
         # Keep alive for full duration
         sleep 21600
-
-    - name: Display endpoint
-      run: |
-        echo "Public URL: https://${{ steps.uid.outputs.instance_id }}.nport.io"
-        echo "Service active for 6 hours"
