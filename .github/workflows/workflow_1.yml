@@ -19,6 +19,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          curl -o model/Llama-3.2-3B-Instruct-Q4_K_M.gguf "https://raw.githubusercontent.com/NitinBot001/deepseek_r1-1.5b_api/blob/main/model/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
           pip install flask requests llama-cpp-python jq
 
     
