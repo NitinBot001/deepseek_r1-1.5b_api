@@ -1,1 +1,2 @@
 model/calme-3.3-llamaloi-3b.Q4_K_S.gguf filter=lfs diff=lfs merge=lfs -text
+model/Llama-3.2-3B-Instruct-Q4_K_M.gguf filter=lfs diff=lfs merge=lfs -text
