@@ -8,7 +8,7 @@ on:
 jobs:
   service-instance:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6 hours max
+    timeout-minutes: 360
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -24,6 +24,10 @@ jobs:
       with:
         python-version: '3.10'
 
+    # Add context download step here
+    - name: Download context file
+      run: wget https://github.com/NitinBot001/Unlimitedrdp/raw/refs/heads/main/context.txt -O context.txt
+
     - name: Create Python application
       run: |
         cat > app.py <<EOL
@@ -31,10 +35,17 @@ jobs:
         import requests
         from flask import Flask, request, jsonify
         from llama_cpp import Llama
-        import sys
 
         app = Flask(__name__)
         MODEL_PATH = "model/calme-3.3-llamaloi-3b.Q4_K_M.gguf"
+        CONTEXT_PATH = "context.txt"
+
+        def load_context():
+            try:
+                with open(CONTEXT_PATH, 'r') as f:
+                    return f.read().strip()
+            except:
+                return ""
 
         def download_model():
             os.makedirs("model", exist_ok=True)
@@ -53,12 +64,31 @@ jobs:
             n_gpu_layers=0,
             verbose=False
         )
+        system_context = load_context()
 
         @app.route('/chat', methods=['POST'])
         def chat():
             data = request.json
-            prompt = f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n{data.get('message','')}<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n"
-            output = llm(prompt, max_tokens=2048, stop=["<|eot_id|>"], temperature=0.8, top_p=0.9)
+            user_message = data.get('message','')
+            
+            full_prompt = f"""<|begin_of_text|>
+            <|start_header_id|>system<|end_header_id|>
+            {system_context}
+            <|eot_id|>
+            <|start_header_id|>user<|end_header_id|>
+            {user_message}
+            <|eot_id|>
+            <|start_header_id|>assistant<|end_header_id|>
+            """
+            
+            output = llm(
+                full_prompt,
+                max_tokens=2048,  # Reduced for context space
+                stop=["<|eot_id|>"],
+                temperature=0.8,
+                top_p=0.9,
+                repeat_penalty=1.1
+            )
             return jsonify({"response": output['choices'][0]['text'].strip()})
 
         if __name__ == '__main__':
@@ -87,7 +117,7 @@ jobs:
         npx nport -s ${{ steps.uid.outputs.instance_id }} -p 5000 > tunnel.log 2>&1 &
 
         # Wait for tunnel to establish and extract URL
-        sleep 10
+        sleep 15  # Increased wait time
         TUNNEL_URL=$(grep -oP 'your domain is: \Khttps://\S+' tunnel.log)
         
         echo "Extracted Tunnel URL: $TUNNEL_URL"
