@@ -34,13 +34,13 @@ jobs:
         import sys
 
         app = Flask(__name__)
-        MODEL_PATH = "model/calme-3.3-llamaloi-3b.Q4_K_M.gguf"
+        MODEL_PATH = "model/gemma-2-2b-it-Q8_0.gguf"
 
         def download_model():
             os.makedirs("model", exist_ok=True)
             if not os.path.exists(MODEL_PATH):
                 print("Downloading model...")
-                r = requests.get("https://huggingface.co/MaziyarPanahi/calme-3.3-llamaloi-3b-GGUF/resolve/main/calme-3.3-llamaloi-3b.Q4_K_M.gguf", stream=True)
+                r = requests.get("https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q8_0.gguf", stream=True)
                 with open(MODEL_PATH, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
@@ -58,7 +58,7 @@ jobs:
         def chat():
             data = request.json
             prompt = f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n{data.get('message','')}<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n"
-            output = llm(prompt, max_tokens=256, stop=["<|eot_id|>"])
+            output = llm(prompt, max_tokens=2048, stop=["<|eot_id|>"], temperature=0.5, top_p=0.9)
             return jsonify({"response": output['choices'][0]['text'].strip()})
 
         if __name__ == '__main__':
