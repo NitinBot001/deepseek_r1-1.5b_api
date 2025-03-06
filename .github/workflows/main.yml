@@ -27,89 +27,39 @@ jobs:
     - name: Create Python application
       run: |
         cat > app.py <<EOL
-        from flask import Flask, request, Response, stream_with_context
+        import os
         import requests
+        from flask import Flask, request, jsonify
+        from llama_cpp import Llama
+        import sys
 
         app = Flask(__name__)
+        MODEL_PATH = "model/calme-3.3-llamaloi-3b.Q4_K_M.gguf"
 
-        MODEL_MAPPINGS = {
-            "llama33": "Hepzeka.com | Llama-3.3-70B-Instruct",
-            "deepseekr1": "DeepSeek-R1-Distill-Qwen-32B",
-            "phi35m": "Phi-3.5-mini-instruct",
-            "mistralnemo": "Mistral-Nemo-Instruct-2407",
-            "smallthinker3b": "SmallThinker-3B-Preview",
-            "llama32vision": "Llama-3.2-11B-Vision-Instruct"
-        }
+        def download_model():
+            os.makedirs("model", exist_ok=True)
+            if not os.path.exists(MODEL_PATH):
+                print("Downloading model...")
+                r = requests.get("https://huggingface.co/MaziyarPanahi/calme-3.3-llamaloi-3b-GGUF/resolve/main/calme-3.3-llamaloi-3b.Q4_K_M.gguf", stream=True)
+                with open(MODEL_PATH, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        f.write(chunk)
 
-        DEFAULT_MODEL = "Hepzeka.com | Llama-3.3-70B-Instruct"
-        DEFAULT_TEMPERATURE = 0.7
-        DEFAULT_TOP_P = 0.9
-        DEFAULT_WEB_SEARCH = False
+        download_model()
+        llm = Llama(
+            model_path=MODEL_PATH,
+            n_ctx= 8192,
+            n_threads=2,
+            n_gpu_layers=0,
+            verbose=False
+        )
 
-        def fetch_context():
-            try:
-                response = requests.get('https://raw.githubusercontent.com/NitinBot001/Unlimitedrdp/refs/heads/main/context.txt')
-                return response.text
-            except Exception as e:
-                print('Error fetching context:', e)
-                return None
-
-        @app.route('/get-convid', methods=['POST'])
-        def get_convid():
-            try:
-                context = fetch_context()
-                response = requests.post(
-                    'https://mukaist-chatbot-ui-with-api.hf.space/create',
-                    json={"system_prompt": context},
-                    headers={
-                        'authority': 'mukaist-chatbot-ui-with-api.hf.space',
-                        'accept': '*/*',
-                        'content-type': 'application/json',
-                        'origin': 'https://mukaist-chatbot-ui-with-api.hf.space',
-                        'referer': 'https://mukaist-chatbot-ui-with-api.hf.space/',
-                        'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36'
-                    }
-                )
-                return {"convid": response.json().get('convId')}
-            except Exception as e:
-                return {"error": "Failed to get conversation ID"}, 500
-
-        @app.route('/get-response', methods=['POST'])
-        def get_response():
+        @app.route('/chat', methods=['POST'])
+        def chat():
             data = request.json
-            convid = data.get('convid')
-            prompt = data.get('prompt')
-            model = data.get('model', DEFAULT_MODEL)
-            
-            try:
-                response = requests.post(
-                    'https://mukaist-chatbot-ui-with-api.hf.space/completions',
-                    json={
-                        "model": MODEL_MAPPINGS.get(model, DEFAULT_MODEL),
-                        "prompt": f"{fetch_context()}\n\n{prompt}",
-                        "convId": convid,
-                        "temperature": data.get('temperature', DEFAULT_TEMPERATURE),
-                        "top_p": data.get('top_p', DEFAULT_TOP_P),
-                        "webSearch": data.get('ws', DEFAULT_WEB_SEARCH)
-                    },
-                    headers={
-                        'content-type': 'application/json',
-                        'origin': 'https://mukaist-chatbot-ui-with-api.hf.space',
-                        'referer': 'https://mukaist-chatbot-ui-with-api.hf.space/'
-                    },
-                    stream=True
-                )
-
-                def generate():
-                    for chunk in response.iter_content(chunk_size=1024):
-                        yield chunk
-
-                return Response(
-                    stream_with_context(generate()),
-                    content_type=response.headers.get('Content-Type', 'text/html')
-                )
-            except Exception as e:
-                return {"error": "Failed to get response from chatbot"}, 500
+            prompt = f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n{data.get('message','')}<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n"
+            output = llm(prompt, max_tokens=2048, stop=["<|eot_id|>"], temperature=0.8, top_p=0.9)
+            return jsonify({"response": output['choices'][0]['text'].strip()})
 
         if __name__ == '__main__':
             app.run(host='0.0.0.0', port=5000)
@@ -118,7 +68,7 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flask requests gunicorn gevent
+        pip install flask requests llama-cpp-python
 
     - name: Install Node.js dependencies
       uses: actions/setup-node@v3
@@ -130,12 +80,8 @@ jobs:
       env:
         GH_PAT: ${{ secrets.GH_PAT }}
       run: |
-        # Start Gunicorn with gevent workers
-        gunicorn -b 0.0.0.0:5000 app:app \
-          --worker-class gevent \
-          --timeout 120 \
-          --access-logfile - \
-          --error-logfile - > app.log 2>&1 &
+        # Start Flask service
+        python app.py > app.log 2>&1 &
 
         # Start tunnel
         npx nport -s ${{ steps.uid.outputs.instance_id }} -p 5000 > tunnel.log 2>&1 &
